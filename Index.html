@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Multivista Nürburgring 24H</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      color: white;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #grid {
+      flex: 1;
+      display: grid;
+      gap: 4px;
+      padding: 4px;
+      background: black;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border: none;
+      border-radius: 8px;
+    }
+
+    .layout-2x2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+    .layout-3x2 { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; }
+    .layout-focus {
+      grid-template-columns: 2fr 1fr;
+      grid-template-rows: 1fr 1fr 1fr;
+    }
+    .layout-focus iframe:nth-child(1) {
+      grid-row: 1 / span 3;
+    }
+
+    /* Header oculto por defecto */
+    header {
+      position: fixed;
+      top: -70px;
+      left: 0;
+      right: 0;
+      background-color: #020202;
+      z-index: 1000;
+      transition: top 0.3s;
+      padding: 10px 20px;
+    }
+
+    header.visible {
+      top: 0;
+    }
+
+    #topToggleZone {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 10px;
+      z-index: 999;
+    }
+
+    /* Panel lateral */
+    #sidePanel {
+      position: fixed;
+      top: 0;
+      right: -250px;
+      width: 250px;
+      height: 100%;
+      background-color: #111;
+      color: white;
+      overflow-y: auto;
+      transition: right 0.3s;
+      padding: 10px;
+      z-index: 999;
+    }
+
+    #sidePanel.visible {
+      right: 0;
+    }
+
+    #sidePanel h5 {
+      margin-top: 0;
+      border-bottom: 1px solid #333;
+      padding-bottom: 8px;
+    }
+
+    #toggleZone {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 20px;
+      height: 100%;
+      z-index: 998;
+    }
+
+    .camera-btn {
+      width: 100%;
+      margin-bottom: 8px;
+    }
+
+    .camera-btn.active {
+      background-color: #198754 !important;
+    }
+
+    .layout-icons img {
+      width: 48px;
+      height: 48px;
+      margin: 0 5px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      border-radius: 6px;
+    }
+
+    .layout-icons img.active {
+      border-color: #0d6efd;
+    }
+
+    body.panel-open #grid {
+      margin-right: 250px;
+    }
+    .camera-btn img {
+  border-radius: 4px;
+  background: #ffffff00;
+}
+
+  </style>
+</head>
+<body>
+
+<!-- Zona superior invisible -->
+<div id="topToggleZone"></div>
+
+<header id="topHeader">
+  <div class="d-flex align-items-center justify-content-center gap-3 layout-icons">
+    <img src="Group 2.png" title="2x2" onclick="setLayout('layout-2x2', this)">
+    <img src="Group3.png" title="3x2" onclick="setLayout('layout-3x2', this)">
+    <img src="Group4.png" title="1 Grande + 3" onclick="setLayout('layout-focus', this)">
+  </div>
+</header>
+
+
+<!-- Grid -->
+<div id="grid" class="layout-2x2"></div>
+
+<!-- Zona lateral invisible -->
+<div id="toggleZone"></div>
+
+<!-- Panel lateral -->
+<div id="sidePanel">
+  <h5>Agregar cámaras</h5>
+  <div id="cameraButtons" class="d-grid gap-2"></div>
+</div>
+<script>
+  const MAX_STREAMS = 6;
+  const cameras = [
+    {label: "#14 Mercedes", url: "https://www.youtube.com/embed/9EIuC_v_lQg?autoplay=1&mute=1", logo: "logos/Mercedes.png" },
+    { label: "#17 Mercedes", url: "https://www.youtube.com/embed/6H-rKAzI3vc?autoplay=1&mute=1", logo: "logos/Mercedes.png" },
+    { label: "#1 Audi R8", url: "https://www.youtube.com/embed/g-ioq7t0qgc?autoplay=1&mute=1", logo: "logos/audi.png"  },
+    { label: "Carrera general UK", url: "https://www.youtube.com/embed/n18gSbqRmis?autoplay=1&mute=1", logo: "logos/race.png"  },
+    { label: "Carrera general AL", url: "https://www.youtube.com/embed/Nt7ewGmnN9g?autoplay=1&mute=1", logo: "logos/race.png"  },
+    { label: "#911 Porsche", url: "https://www.youtube.com/embed/67LVtQD0C6w?autoplay=1&mute=1", logo: "logos/porsche.png" },
+    { label: "#150 BMW", url: "https://www.youtube.com/embed/lmZ1pSiZi48?autoplay=1&mute=1",logo: "logos/BMW.webp" },
+    { label: "#88 Subaru", url: "https://www.youtube.com/embed/7HN3AqMeMc0?autoplay=1&mute=1", logo: "logos/Subaru.png" },
+    { label: "#109 TOYOTA ", url: "https://www.youtube.com/embed/1UXH_VjSwSg?autoplay=1&mute=1", logo: "logos/Toyota.png" },
+    { label: "#44 Porsche", url: "https://www.youtube.com/embed/1UXH_VjSwSg?autoplay=1&mute=1", logo: "logos/porsche.png"  },
+    { label: "#97 Porsche", url: "https://www.youtube.com/embed/JlZP4NoKnhg?autoplay=1&mute=1", logo: "logos/porsche.png"},
+    { label: "#110 TOYOTA", url: "https://www.youtube.com/embed/L2YCMfWy5NU?autoplay=1&mute=1", logo: "logos/Toyota.png" },
+    { label: "#718 Porsche", url: "https://www.youtube.com/embed/1UXH_VjSwSg?autoplay=1&mute=1" , logo: "logos/porsche.png" },
+    { label: "#19 Golf GTI", url: "https://www.youtube.com/embed/Qg3YgjaZIoU?autoplay=1&mute=1", logo: "logos/Volkswagen.png" },
+    { label: "#98 BMW M4", url: "https://www.youtube.com/embed/ULia3lLKoEA?autoplay=1&mute=1", logo: "logos/BMW.webp" },
+    { label: "#13 White Angel", url: "https://www.youtube.com/embed/VbNp7dSI-y0?autoplay=1&mute=1", logo: "logos/Volkswagen.png"  },
+    { label: "#27 Lamborghini RB", url: "https://www.youtube.com/embed/ZEPAuItPQSI?autoplay=1&mute=1" , logo: "logos/lamborghini.png"},
+    { label: "#16 Porsche", url: "https://www.youtube.com/embed/buy2LRHcA-0?autoplay=1&mute=1" , logo: "logos/porsche.png" },
+    { label: "#33 Porsche", url: "https://www.youtube.com/embed/cHTdu9Yfwp8?autoplay=1&mute=1", logo: "logos/porsche.png"  },
+    { label: "#830 Hyundai", url: "https://www.youtube.com/embed/ek6irpP4E-I?autoplay=1&mute=1", logo: "logos/logo.png"  }
+    
+  ];
+
+
+const grid = document.getElementById('grid');
+const panel = document.getElementById('sidePanel');
+const toggleZone = document.getElementById('toggleZone');
+const topZone = document.getElementById('topToggleZone');
+const topHeader = document.getElementById('topHeader');
+const buttonContainer = document.getElementById('cameraButtons');
+
+let activeStreams = [];
+let currentLayout = 'layout-2x2'; // Layout inicial
+
+toggleZone.addEventListener('mouseenter', () => panel.classList.add('visible'));
+panel.addEventListener('mouseleave', () => panel.classList.remove('visible'));
+
+topZone.addEventListener('mouseenter', () => topHeader.classList.add('visible'));
+topHeader.addEventListener('mouseleave', () => topHeader.classList.remove('visible'));
+
+function getMaxStreams() {
+  return currentLayout === 'layout-3x2' ? 6 : 4;
+}
+
+cameras.forEach(cam => {
+  const btn = document.createElement('button');
+  btn.className = "btn btn-outline-light camera-btn d-flex align-items-center gap-2";
+
+  const img = document.createElement('img');
+  img.src = cam.logo;
+  img.alt = cam.label;
+  img.style.width = "24px";
+  img.style.height = "24px";
+  img.style.objectFit = "contain";
+
+  const span = document.createElement('span');
+  span.textContent = cam.label;
+
+  btn.appendChild(img);
+  btn.appendChild(span);
+
+  btn.onclick = () => toggleCamera(cam, btn);
+  buttonContainer.appendChild(btn);
+});
+
+
+function toggleCamera(cam, btn) {
+  const existingIframe = document.getElementById(cam.url);
+  if (existingIframe) {
+    grid.removeChild(existingIframe);
+    activeStreams = activeStreams.filter(s => s.url !== cam.url);
+    btn.classList.remove("active");
+  } else {
+    if (activeStreams.length >= getMaxStreams()) {
+      alert(`Máximo ${getMaxStreams()} cámaras activas en este diseño.`);
+      return;
+    }
+    const iframe = document.createElement('iframe');
+    iframe.src = cam.url;
+    iframe.id = cam.url;
+    iframe.allow = "autoplay; encrypted-media";
+    iframe.allowFullscreen = true;
+    grid.appendChild(iframe);
+    activeStreams.push(cam);
+    btn.classList.add("active");
+  }
+}
+
+function setLayout(layoutClass, icon) {
+  currentLayout = layoutClass;
+  grid.className = layoutClass;
+
+  document.querySelectorAll('.layout-icons img').forEach(img => {
+    img.classList.remove('active');
+  });
+  icon.classList.add('active');
+
+  const maxStreams = getMaxStreams();
+  if (activeStreams.length > maxStreams) {
+    alert(`Este diseño solo permite ${maxStreams} cámaras. Cerrando cámaras excedentes...`);
+    while (activeStreams.length > maxStreams) {
+      const last = activeStreams.pop();
+      const iframe = document.getElementById(last.url);
+      if (iframe) grid.removeChild(iframe);
+      // Desactivar botón correspondiente
+      const btns = document.querySelectorAll('.camera-btn');
+      btns.forEach(btn => {
+        if (btn.textContent === last.label) btn.classList.remove("active");
+      });
+    }
+  }
+}
+
+window.onload = () => {
+  document.querySelectorAll('.camera-btn')[0].click();
+  document.querySelectorAll('.camera-btn')[1].click();
+  document.querySelectorAll('.camera-btn')[2].click();
+  document.querySelectorAll('.camera-btn')[3].click();
+  document.querySelectorAll('.layout-icons img')[0].classList.add('active');
+};
+
+</script>
+
+
+</body>
+</html>
